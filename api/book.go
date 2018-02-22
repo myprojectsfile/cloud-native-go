@@ -2,21 +2,22 @@ package api
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 )
 
 // Book type with Name, Author and ISBN
 type Book struct {
-	Title  string `json:"title"`
-	Author string `json:"author"`
-	ISBN   string `json:"isbn"`
-	// Description string `json:"description,omitempty"`
+	Title       string `json:"title"`
+	Author      string `json:"author"`
+	ISBN        string `json:"isbn"`
+	Description string `json:"description,omitempty"`
 }
 
-// Books sample
-var Books = []Book{
-	Book{Title: "The Hitchhiker's Guide to the Galaxy", Author: "Douglas Adams", ISBN: "0345391802"},
-	Book{Title: "Cloud Native Go", Author: "M.-Leander Reimer", ISBN: "0000000000"},
+// books sample
+var books = map[string]Book{
+	"0345391802": Book{Title: "The Hitchhiker's Guide to the Galaxy", Author: "Douglas Adams", ISBN: "0345391802"},
+	"0000000000": Book{Title: "Cloud Native Go", Author: "M.-Leander Reimer", ISBN: "0000000000"},
 }
 
 // ToJSON to be used for marshalling of Book type
@@ -43,22 +44,61 @@ func HandleError(err error) {
 
 // BookHandleFunc - for handling http request
 func BookHandleFunc(res http.ResponseWriter, req *http.Request) {
-	jsonResult, err := json.Marshal(Books)
+	switch method := req.Method; method {
+	case http.MethodGet:
+		books := AllBooks()
+		writeJSON(res, books)
+	case http.MethodPost:
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+		}
+		book := FromJSON(body)
+		isbn, created := CreateBook(book)
+		if created {
+			res.Header().Add("location", "/api/books/"+isbn)
+			res.WriteHeader(http.StatusCreated)
+		} else {
+			res.WriteHeader(http.StatusConflict)
+		}
+	default:
+		res.WriteHeader(http.StatusBadRequest)
+		res.Write([]byte("Unsuported request method."))
+	}
+
+	jsonResult, err := json.Marshal(books)
 	HandleError(err)
 	res.Header().Add("Content-Type", "application/json; charset=utf-8")
 	res.Write(jsonResult)
 }
 
+func writeJSON(res http.ResponseWriter, i interface{}) {
+	b, err := json.Marshal(i)
+	HandleError(err)
+	res.Header().Add("Content-Type", "application/json; charset=utf-8")
+	res.Write(b)
+}
+
 // AllBooks returns a slice of all books
-// func AllBooks() []Book {
-// 	values := make([]Book, len(books))
-// 	idx := 0
-// 	for _, book := range books {
-// 		values[idx] = book
-// 		idx++
-// 	}
-// 	return values
-// }
+func AllBooks() []Book {
+	values := make([]Book, len(books))
+	idx := 0
+	for _, book := range books {
+		values[idx] = book
+		idx++
+	}
+	return values
+}
+
+// CreateBook creates a new Book if it does not exist
+func CreateBook(book Book) (string, bool) {
+	_, exists := books[book.ISBN]
+	if exists {
+		return "", false
+	}
+	books[book.ISBN] = book
+	return book.ISBN, true
+}
 
 // BooksHandleFunc to be used as http.HandleFunc for Book API
 // func BooksHandleFunc(w http.ResponseWriter, r *http.Request) {
@@ -131,16 +171,6 @@ func BookHandleFunc(res http.ResponseWriter, req *http.Request) {
 // func GetBook(isbn string) (Book, bool) {
 // 	book, found := books[isbn]
 // 	return book, found
-// }
-
-// CreateBook creates a new Book if it does not exist
-// func CreateBook(book Book) (string, bool) {
-// 	_, exists := books[book.ISBN]
-// 	if exists {
-// 		return "", false
-// 	}
-// 	books[book.ISBN] = book
-// 	return book.ISBN, true
 // }
 
 // UpdateBook updates an existing book
