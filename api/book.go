@@ -22,7 +22,7 @@ var Books = []Book{
 // ToJSON to be used for marshalling of Book type
 func (b Book) ToJSON() []byte {
 	ToJSON, err := json.Marshal(b)
-	handleError(err)
+	HandleError(err)
 	return ToJSON
 }
 
@@ -30,11 +30,12 @@ func (b Book) ToJSON() []byte {
 func FromJSON(data []byte) Book {
 	book := Book{}
 	err := json.Unmarshal(data, &book)
-	handleError(err)
+	HandleError(err)
 	return book
 }
 
-func handleError(err error) {
+// HandleError - for error handling
+func HandleError(err error) {
 	if err != nil {
 		panic(err)
 	}
@@ -43,7 +44,7 @@ func handleError(err error) {
 // BookHandleFunc - for handling http request
 func BookHandleFunc(res http.ResponseWriter, req *http.Request) {
 	jsonResult, err := json.Marshal(Books)
-	handleError(err)
+	HandleError(err)
 	res.Header().Add("Content-Type", "application/json; charset=utf-8")
 	res.Write(jsonResult)
 }
