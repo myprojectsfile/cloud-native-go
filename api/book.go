@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"net/http"
 )
 
 // Book type with Name, Author and ISBN
@@ -12,7 +13,8 @@ type Book struct {
 	// Description string `json:"description,omitempty"`
 }
 
-var books = []Book{
+// Books sample
+var Books = []Book{
 	Book{Title: "The Hitchhiker's Guide to the Galaxy", Author: "Douglas Adams", ISBN: "0345391802"},
 	Book{Title: "Cloud Native Go", Author: "M.-Leander Reimer", ISBN: "0000000000"},
 }
@@ -20,9 +22,7 @@ var books = []Book{
 // ToJSON to be used for marshalling of Book type
 func (b Book) ToJSON() []byte {
 	ToJSON, err := json.Marshal(b)
-	if err != nil {
-		panic(err)
-	}
+	handleError(err)
 	return ToJSON
 }
 
@@ -30,10 +30,22 @@ func (b Book) ToJSON() []byte {
 func FromJSON(data []byte) Book {
 	book := Book{}
 	err := json.Unmarshal(data, &book)
+	handleError(err)
+	return book
+}
+
+func handleError(err error) {
 	if err != nil {
 		panic(err)
 	}
-	return book
+}
+
+// BookHandleFunc - for handling http request
+func BookHandleFunc(res http.ResponseWriter, req *http.Request) {
+	jsonResult, err := json.Marshal(Books)
+	handleError(err)
+	res.Header().Add("Content-Type", "application/json; charset=utf-8")
+	res.Write(jsonResult)
 }
 
 // AllBooks returns a slice of all books
